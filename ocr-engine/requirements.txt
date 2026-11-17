@@ -1,0 +1,5 @@
+cloudevents==2.2.0
+requests
+numpy
+easyocr
+opencv-python-headless

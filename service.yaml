@@ -1,0 +1,25 @@
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ocr-engine
+  namespace: ocr
+spec:
+  template:
+    spec:
+      containers:
+        - name: ocr-executor
+          image: docker.io/vitezalexandra/ocr-engine:latest
+          imagePullPolicy: Always
+          env:
+            - name: EASYOCR_MODEL_DIR
+              value: /models
+          volumeMounts:
+            - name: easyocr-models
+              mountPath: /models
+              readOnly: false
+      volumes:
+        - name: easyocr-models
+          persistentVolumeClaim:
+            claimName: easyocr-models
+            readOnly: false

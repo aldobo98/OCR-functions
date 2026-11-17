@@ -1,0 +1,15 @@
+apiVersion: sources.knative.dev/v1
+kind: SinkBinding
+metadata:
+  name: ocr-webservice-sinkbinding
+  namespace: ocr
+spec:
+  subject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ocr-webservice
+  sink:
+    ref:
+      apiVersion: eventing.knative.dev/v1
+      kind: Broker
+      name: ocr-broker

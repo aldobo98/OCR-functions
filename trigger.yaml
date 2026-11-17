@@ -1,0 +1,15 @@
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: ocr-engine-trigger
+  namespace: ocr
+spec:
+  broker: ocr-broker
+  filter:
+    attributes:
+      type: hu.ocr-backend.image.process
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: ocr-engine
