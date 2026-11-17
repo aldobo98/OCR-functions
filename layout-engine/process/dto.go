@@ -1,5 +1,7 @@
 package process
 
+import "encoding/json"
+
 type OCRRow struct {
 	BoundingBox [4][2]int `json:"bounding_box"`
 	Text        string    `json:"text"`
@@ -50,4 +52,18 @@ type Summary struct {
 	Vat         string `json:"vat"`
 	Gross_worth string `json:"gross_worth"`
 	Vat_percent string `json:"vat_percent"`
+}
+
+type StartLayoutAnalysis struct {
+	JobID       string    `json:"jobId"`
+	OcrData     OCRResult `json:"ocr_data"`
+	CallBackUrl string    `json:"callbackUrl"`
+}
+
+type Callback struct {
+	JobID        string          `json:"jobId"`
+	Step         string          `json:"step"`
+	Status       string          `json:"status"`
+	Data         json.RawMessage `json:"data"`
+	ErrorMessage string          `json:"error"`
 }
