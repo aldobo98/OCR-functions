@@ -1,0 +1,15 @@
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: layout-engine-trigger
+  namespace: ocr
+spec:
+  broker: ocr-broker
+  filter:
+    attributes:
+      type: hu.ocr-backend.layout.process
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: layout-engine
