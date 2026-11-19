@@ -3,8 +3,10 @@ package process
 import (
 	"errors"
 	"math"
+	"slices"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 func centerY(row OCRRow) float64 {
@@ -95,6 +97,36 @@ func joinByX(rows []OCRRow) string {
 		parts = append(parts, strings.TrimSpace(r.Text))
 	}
 	return strings.Join(parts, " ")
+}
+
+// Csak számjegyekből és szám-elválasztókból álló szöveg (pl. "1", "320,00", "$ 1")
+func isNumericFragment(text string) bool {
+	t := strings.TrimSpace(text)
+	if t == "" {
+		return false
+	}
+	hasDigit := false
+	for _, r := range t {
+		switch {
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case strings.ContainsRune(" .,$€%-", r):
+		default:
+			return false
+		}
+	}
+	return hasDigit
+}
+
+// Vízszintes távolság egy doboz és a [left, right] tartomány között (0, ha átfednek)
+func gapX(row OCRRow, left, right int) int {
+	if row.BoundingBox[1][0] < left {
+		return left - row.BoundingBox[1][0]
+	}
+	if row.BoundingBox[0][0] > right {
+		return row.BoundingBox[0][0] - right
+	}
+	return 0
 }
 
 func createPersonFromRows(rows []OCRRow, taxId string) Person {
@@ -256,6 +288,17 @@ func Process(data OCRResult) (LayoutResult, error) {
 		item_anchors = append(item_anchors, a)
 	}
 
+	columns := []OCRRow{no, desc, qty, um, net_price, net_worth_items, vat_items, gross_items}
+	// Olyan doboz, ami egyik oszlopfejléccel sem fed át (pl. az "1 320,00"-ból leszakadt "1")
+	isOrphan := func(row OCRRow) bool {
+		for _, c := range columns {
+			if !isEmpty(c) && overlapsX(c, row, tolerance) {
+				return false
+			}
+		}
+		return true
+	}
+
 	// Egy oszlop cellája az adott tételsorban: minden doboz, ami a sorban van és átfed a fejléccel
 	cell := func(anchor, column OCRRow) string {
 		if isEmpty(column) {
@@ -265,6 +308,31 @@ func Process(data OCRResult) (LayoutResult, error) {
 		for _, row := range data.Results {
 			if row != column && sameLine(anchor, row, tolerance) && overlapsX(column, row, tolerance) {
 				parts = append(parts, row)
+			}
+		}
+		if len(parts) == 0 {
+			return ""
+		}
+		// A cellához közvetlenül csatlakozó, gazdátlan számtöredékek hozzáfűzése
+		for {
+			added := false
+			left, right := parts[0].BoundingBox[0][0], parts[0].BoundingBox[1][0]
+			for _, p := range parts {
+				left = min(left, p.BoundingBox[0][0])
+				right = max(right, p.BoundingBox[1][0])
+			}
+			for _, row := range data.Results {
+				if row == column || slices.Contains(parts, row) || !sameLine(anchor, row, tolerance) ||
+					!isOrphan(row) || !isNumericFragment(row.Text) {
+					continue
+				}
+				if gapX(row, left, right) <= 2*tolerance {
+					parts = append(parts, row)
+					added = true
+				}
+			}
+			if !added {
+				break
 			}
 		}
 		return joinByX(parts)
